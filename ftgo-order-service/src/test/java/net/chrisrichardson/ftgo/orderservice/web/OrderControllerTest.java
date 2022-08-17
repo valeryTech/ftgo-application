@@ -1,6 +1,6 @@
 package net.chrisrichardson.ftgo.orderservice.web;
 
-import io.eventuate.javaclient.commonimpl.JSonMapper;
+import io.eventuate.common.json.mapper.JSonMapper;
 import net.chrisrichardson.ftgo.common.CommonJsonMapperInitializer;
 import net.chrisrichardson.ftgo.orderservice.OrderDetailsMother;
 import net.chrisrichardson.ftgo.orderservice.domain.OrderRepository;
@@ -27,7 +27,7 @@ public class OrderControllerTest {
   private OrderController orderController;
 
   @Before
-  public void setUp() throws Exception {
+  public void setUp() {
     orderService = mock(OrderService.class);
     orderRepository = mock(OrderRepository.class);
     orderController = new OrderController(orderService, orderRepository);

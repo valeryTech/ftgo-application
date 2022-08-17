@@ -1,7 +1,10 @@
 package net.chrisrichardson.ftgo.orderservice.domain;
 
 import io.eventuate.tram.events.aggregates.ResultWithDomainEvents;
+import net.chrisrichardson.ftgo.common.RevisedOrderLineItem;
+import net.chrisrichardson.ftgo.orderservice.OrderDetailsMother;
 import net.chrisrichardson.ftgo.orderservice.RestaurantMother;
+import net.chrisrichardson.ftgo.orderservice.api.events.OrderAuthorized;
 import net.chrisrichardson.ftgo.orderservice.api.events.OrderCreatedEvent;
 import net.chrisrichardson.ftgo.orderservice.api.events.OrderDomainEvent;
 import net.chrisrichardson.ftgo.orderservice.api.events.OrderState;
@@ -14,7 +17,6 @@ import java.util.Optional;
 
 import static java.util.Collections.singletonList;
 import static net.chrisrichardson.ftgo.orderservice.OrderDetailsMother.*;
-import static net.chrisrichardson.ftgo.orderservice.RestaurantMother.AJANTA_ID;
 import static net.chrisrichardson.ftgo.orderservice.RestaurantMother.AJANTA_RESTAURANT;
 import static net.chrisrichardson.ftgo.orderservice.RestaurantMother.CHICKEN_VINDALOO_PRICE;
 import static org.junit.Assert.assertEquals;
@@ -26,13 +28,13 @@ public class OrderTest {
 
   @Before
   public void setUp() throws Exception {
-    createResult = Order.createOrder(CONSUMER_ID, AJANTA_RESTAURANT, chickenVindalooLineItems());
+    createResult = Order.createOrder(CONSUMER_ID, AJANTA_RESTAURANT, OrderDetailsMother.DELIVERY_INFORMATION, chickenVindalooLineItems());
     order = createResult.result;
   }
 
   @Test
   public void shouldCreateOrder() {
-    assertEquals(singletonList(new OrderCreatedEvent(CHICKEN_VINDALOO_ORDER_DETAILS, RestaurantMother.AJANTA_RESTAURANT_NAME)), createResult.events);
+    assertEquals(singletonList(new OrderCreatedEvent(CHICKEN_VINDALOO_ORDER_DETAILS, OrderDetailsMother.DELIVERY_ADDRESS, RestaurantMother.AJANTA_RESTAURANT_NAME)), createResult.events);
 
     assertEquals(OrderState.APPROVAL_PENDING, order.getState());
     // ...
@@ -55,7 +57,7 @@ public class OrderTest {
 
     order.noteApproved();
 
-    OrderRevision orderRevision = new OrderRevision(Optional.empty(), Collections.singletonMap("1", 10));
+    OrderRevision orderRevision = new OrderRevision(Optional.empty(), Collections.singletonList(new RevisedOrderLineItem(10, "1")));
 
     ResultWithDomainEvents<LineItemQuantityChange, OrderDomainEvent> result = order.revise(orderRevision);
 

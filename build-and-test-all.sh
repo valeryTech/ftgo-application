@@ -2,11 +2,9 @@
 
 KEEP_RUNNING=
 ASSEMBLE_ONLY=
-DATABASE_SERVICES="dynamodblocal mysql dynamodblocal-init"
+USE_EXISTING_CONTAINERS=
 
-if [ -z "$DOCKER_COMPOSE" ] ; then
-    DOCKER_COMPOSE=docker-compose
-fi
+DATABASE_SERVICES="dynamodblocal mysql dynamodblocal-init"
 
 while [ ! -z "$*" ] ; do
   case $1 in
@@ -16,8 +14,11 @@ while [ ! -z "$*" ] ; do
     "--assemble-only" )
       ASSEMBLE_ONLY=yes
       ;;
+    "--use-existing-containers" )
+      USE_EXISTING_CONTAINERS=yes
+      ;;
     "--help" )
-      echo ./build-and-test-all.sh --keep-running --assemble-only
+      echo ./build-and-test-all.sh --keep-running --assemble-only --use-existing-containers
       exit 0
       ;;
   esac
@@ -26,71 +27,55 @@ done
 
 echo KEEP_RUNNING=$KEEP_RUNNING
 
-. ./set-env.sh
-
 # TODO Temporarily
 
-./build-contracts.sh
+./gradlew buildContracts
 
-./gradlew testClasses
+./gradlew compileAll
 
-${DOCKER_COMPOSE?} down --remove-orphans -v
-${DOCKER_COMPOSE?} up -d --build ${DATABASE_SERVICES?}
+if [ -z "$USE_EXISTING_CONTAINERS" ] ; then
+    ./gradlew composeDown
+fi
 
-./gradlew waitForMySql
+./gradlew infrastructureComposeUp
 
 echo mysql is started
 
-${DOCKER_COMPOSE?} up -d --build eventuate-local-cdc-service tram-cdc-service
+# Test ./mysql-cli.sh
 
+echo 'show databases;' | ./mysql-cli.sh -i
 
 if [ -z "$ASSEMBLE_ONLY" ] ; then
 
   ./gradlew -x :ftgo-end-to-end-tests:test $* build
 
-  ${DOCKER_COMPOSE?} build
-
   ./gradlew $* integrationTest
 
-  # Component tests need to use the per-service database schema
+  ./gradlew infrastructureComposeDown
+  ./gradlew infrastructureComposeUp
 
+  ./gradlew cleanComponentTest 
 
-  SPRING_DATASOURCE_URL=jdbc:mysql://${DOCKER_HOST_IP?}/ftgoorderservice ./gradlew :ftgo-order-service:cleanComponentTest :ftgo-order-service:componentTest
+  # ./gradlew :ftgo-delivery-service:componentTest
+  # ./gradlew :ftgo-order-service:componentTest
+  
+  ./gradlew componentTest
 
-  # Reset the DB/messages
-
-  ${DOCKER_COMPOSE?} down --remove-orphans -v
-
-  ${DOCKER_COMPOSE?} up -d ${DATABASE_SERVICES?}
-
-  ./gradlew waitForMySql
-
-  echo mysql is started
-
-  ${DOCKER_COMPOSE?} up -d
-
+  ./gradlew composeDown
 
 else
-
   ./gradlew $* assemble
-
-  ${DOCKER_COMPOSE?} up -d --build ${DATABASE_SERVICES?}
-
-  ./gradlew waitForMySql
-
-  echo mysql is started
-
-  ${DOCKER_COMPOSE?} up -d --build
 
 fi
 
-./wait-for-services.sh
+./gradlew :composeUp
 
 ./run-end-to-end-tests.sh
 
 
-./run-graphql-api-gateway-tests.sh
+# NEED TO FIX
+# ./run-graphql-api-gateway-tests.sh
 
 if [ -z "$KEEP_RUNNING" ] ; then
-  ${DOCKER_COMPOSE?} down --remove-orphans -v
+  ./gradlew composeDown
 fi

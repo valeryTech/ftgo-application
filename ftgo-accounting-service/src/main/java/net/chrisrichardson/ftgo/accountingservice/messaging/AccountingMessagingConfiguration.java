@@ -2,9 +2,12 @@ package net.chrisrichardson.ftgo.accountingservice.messaging;
 
 import io.eventuate.javaclient.spring.EnableEventHandlers;
 import io.eventuate.tram.commands.consumer.CommandDispatcher;
-import io.eventuate.tram.consumer.kafka.DuplicateMessageDetector;
+import io.eventuate.tram.commands.consumer.CommandDispatcherFactory;
+import io.eventuate.tram.spring.commands.consumer.TramCommandConsumerConfiguration;
+import io.eventuate.tram.spring.consumer.jdbc.TransactionalNoopDuplicateMessageDetectorConfiguration;
+import io.eventuate.tram.spring.events.subscriber.TramEventSubscriberConfiguration;
 import io.eventuate.tram.events.subscriber.DomainEventDispatcher;
-import io.eventuate.tram.messaging.consumer.MessageConsumer;
+import io.eventuate.tram.events.subscriber.DomainEventDispatcherFactory;
 import io.eventuate.tram.sagas.eventsourcingsupport.SagaReplyRequestedEventSubscriber;
 import net.chrisrichardson.ftgo.accountingservice.domain.Account;
 import net.chrisrichardson.ftgo.accountingservice.domain.AccountServiceConfiguration;
@@ -17,7 +20,7 @@ import java.util.Collections;
 
 @Configuration
 @EnableEventHandlers
-@Import({AccountServiceConfiguration.class, CommonConfiguration.class})
+@Import({AccountServiceConfiguration.class, CommonConfiguration.class, TramEventSubscriberConfiguration.class, TramCommandConsumerConfiguration.class, TransactionalNoopDuplicateMessageDetectorConfiguration.class})
 public class AccountingMessagingConfiguration {
 
   @Bean
@@ -26,8 +29,8 @@ public class AccountingMessagingConfiguration {
   }
 
   @Bean
-  public DomainEventDispatcher domainEventDispatcher(AccountingEventConsumer accountingEventConsumer, MessageConsumer messageConsumer) {
-    return new DomainEventDispatcher("accountingServiceDomainEventDispatcher", accountingEventConsumer.domainEventHandlers(), messageConsumer);
+  public DomainEventDispatcher domainEventDispatcher(AccountingEventConsumer accountingEventConsumer, DomainEventDispatcherFactory domainEventDispatcherFactory) {
+    return domainEventDispatcherFactory.make("accountingServiceDomainEventDispatcher", accountingEventConsumer.domainEventHandlers());
   }
 
   @Bean
@@ -38,13 +41,8 @@ public class AccountingMessagingConfiguration {
 
   @Bean
   public CommandDispatcher commandDispatcher(AccountingServiceCommandHandler target,
-                                             AccountServiceChannelConfiguration data) {
-    return new CommandDispatcher(data.getCommandDispatcherId(), target.commandHandlers());
-  }
-
-  @Bean
-  public DuplicateMessageDetector duplicateMessageDetector() {
-    return new NoopDuplicateMessageDetector();
+                                             AccountServiceChannelConfiguration data, CommandDispatcherFactory commandDispatcherFactory) {
+    return commandDispatcherFactory.make(data.getCommandDispatcherId(), target.commandHandlers());
   }
 
   @Bean

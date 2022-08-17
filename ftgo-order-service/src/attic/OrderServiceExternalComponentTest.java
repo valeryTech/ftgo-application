@@ -1,8 +1,8 @@
 package net.chrisrichardson.ftgo.orderservice;
 
-import io.eventuate.jdbckafka.TramJdbcKafkaConfiguration;
-import io.eventuate.tram.commands.producer.TramCommandProducerConfiguration;
-import io.eventuate.tram.events.publisher.TramEventsPublisherConfiguration;
+import io.eventuate.tram.spring.jdbckafka.TramJdbcKafkaConfiguration;
+import io.eventuate.tram.spring.commands.producer.TramCommandProducerConfiguration;
+import io.eventuate.tram.spring.events.publisher.TramEventsPublisherConfiguration;
 import net.chrisrichardson.ftgo.common.CommonJsonMapperInitializer;
 import org.junit.runner.RunWith;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -24,7 +24,7 @@ public class OrderServiceExternalComponentTest extends AbstractOrderServiceCompo
   }
   
   private int port = 8082;
-  private String host = System.getenv("DOCKER_HOST_IP");
+  private String host = FtgoTestUtil.getDockerHostIp();
 
   @Override
   protected String baseUrl(String path) {
